@@ -14,15 +14,20 @@
         libPath = with pkgs; lib.makeLibraryPath [
           # load external libraries that you need in your rust project here
         ];
-        aya-tool = import ./pkgs/aya-tool/default.nix {
+        aya-tool = import ./nix/pkgs/aya-tool/default.nix {
           inherit (pkgs) fetchFromGitHub cargo cacert rustPlatform;
           version = "0.13.1";
           hash = "sha256-A2lUMbQes7ysO8FU1/oH1hEGSZhlNl8LEqxDC5BM8G0=";
           cargoHash = "sha256-rIfOMTZZA6ZtrxqMsPjNpVAm7NY0hzFPEutQc9JUOdI=";
         };
+        helpers = import nix/helpers.nix { inherit pkgs; };
 
       in
       {
+        apps.default = {
+          type = "app";
+          program = "${helpers}/bin/run";
+        };
         #rec required to access buildInputs and nativeBuildInputs within the mkShell
         devShells.default = pkgs.mkShell rec {
           buildInputs = with pkgs; [
