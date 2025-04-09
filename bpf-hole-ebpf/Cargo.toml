@@ -1,0 +1,17 @@
+[package]
+name = "bpf-hole-ebpf"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bpf-hole-common = { path = "../bpf-hole-common" }
+
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "bpf-hole"
+path = "src/main.rs"
