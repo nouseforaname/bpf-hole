@@ -11,7 +11,7 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         overrides = (builtins.fromTOML (builtins.readFile (self + "/rust-toolchain.toml")));
-        libPath = with pkgs; lib.makeLibraryPath [
+        libPath = pkgs.lib.makeLibraryPath [
           # load external libraries that you need in your rust project here
         ];
         aya-tool = import ./nix/pkgs/aya-tool/default.nix {
@@ -30,18 +30,16 @@
         };
         #rec required to access buildInputs and nativeBuildInputs within the mkShell
         devShells.default = pkgs.mkShell rec {
+
           buildInputs = with pkgs; [
             clang
             rustup
-            llvmPackages.bintools
             cargo-generate
             bpf-linker
             aya-tool
           ];
           nativeBuildInputs = [ pkgs.pkg-config ];
-          packages = with pkgs;[
-            rustup
-          ];
+          packages = [];
           RUSTC_VERSION = overrides.toolchain.channel;
           LIBCLANG_PATH = pkgs.lib.makeLibraryPath [ pkgs.llvmPackages_latest.libclang.lib ];
           shellHook = ''
@@ -55,13 +53,9 @@
             # Includes normal include path
             (builtins.map (a: ''-I"${a}/include"'') [
               # add dev libraries here (e.g. pkgs.libvmi.dev)
-              pkgs.glibc.dev
             ])
             # Includes with special directory paths
             ++ [
-              ''-I"${pkgs.llvmPackages_latest.libclang.lib}/lib/clang/${pkgs.llvmPackages_latest.libclang.version}/include"''
-              ''-I"${pkgs.glib.dev}/include/glib-2.0"''
-              ''-I${pkgs.glib.out}/lib/glib-2.0/include/''
             ];
 
         };

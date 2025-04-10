@@ -1,8 +1,24 @@
 { pkgs }:
 pkgs.writeShellApplication {
   name = "run";
-  runtimeInputs = [ ];
+  runtimeInputs = with pkgs; [
+    rustup
+    bpf-linker
+    clang
+  ];
   text = ''
-    RUST_LOG=info cargo run --config 'target."cfg(all())".runner="sudo -E"' -- --iface "$BPF_HOLE_IFACE"
+    rustup check
+    if [[ -z "''${BPF_HOLE_IFACE-""}" ]]; then
+      echo "which interface should be listened on?"
+      echo -------------------------------
+      ifconfig | grep -v '^ ' | cut -f1 -d: | xargs echo
+      echo -------------------------------
+
+      echo BPF_HOLE_IFACE=
+
+      read -r BPF_HOLE_IFACE
+      export BPF_HOLE_IFACE
+    fi
+    RUST_LOG=info cargo run --config 'target."cfg(all())".runner="sudo -E"' -- --iface "''${BPF_HOLE_IFACE}"
   '';
 }
