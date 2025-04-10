@@ -1,10 +1,9 @@
 #![no_std]
 #![no_main]
 
-use core::mem;
-
 use aya_ebpf::{bindings::xdp_action, macros::xdp, programs::XdpContext};
 use aya_log_ebpf::info;
+use bpf_hole_common::ptr_at;
 use network_types::{
     eth::{EthHdr, EtherType},
     ip::{IpProto, Ipv4Hdr},
@@ -24,19 +23,6 @@ pub fn bpf_hole_xdp(ctx: XdpContext) -> u32 {
         Ok(ret) => ret,
         Err(_) => xdp_action::XDP_ABORTED,
     }
-}
-
-#[inline(always)] //
-fn ptr_at<T>(ctx: &XdpContext, offset: usize) -> Result<*const T, ()> {
-    let start = ctx.data();
-    let end = ctx.data_end();
-    let len = mem::size_of::<T>();
-
-    if start + offset + len > end {
-        return Err(());
-    }
-
-    Ok((start + offset) as *const T)
 }
 
 fn try_bpf_hole(ctx: XdpContext) -> Result<u32, ()> {
@@ -64,43 +50,15 @@ fn try_bpf_hole(ctx: XdpContext) -> Result<u32, ()> {
     let dst_addr = u32::from_be(unsafe { (*ipv4hdr).dst_addr });
     // throw away everything that looks like a broadcast // multicast
     // 4294967295 == 255.255.255.255
-    let octets_src: [u8; 4] = [
-        ((src_addr >> 24) & 0xFF) as u8,
-        ((src_addr >> 16) & 0xFF) as u8,
-        ((src_addr >> 8) & 0xFF) as u8,
-        (src_addr & 0xFF) as u8,
-    ];
-    //let octets_dst: [u8; 4] = [
-    //    ((dst_addr >> 24) & 0xFF) as u8,
-    //    ((dst_addr >> 16) & 0xFF) as u8,
-    //    ((dst_addr >> 8) & 0xFF) as u8,
-    //    (dst_addr & 0xFF) as u8,
-    //];
+    let mut octets_buf = [0u8; 16]; //initialize with whitespace => `32` == ` `
 
-    // do not care about multicast
-    if dst_port == 5353 || src_addr == 4294967295 || octets_src[3] == 255 {
+    if dst_port == 5353 || src_addr == 4294967295 || octets_buf[3] == 255 {
         return Ok(xdp_action::XDP_PASS);
     }
+    let ip_str = bpf_hole_common::ip_str_from_u32(dst_addr, &mut octets_buf);
+    // do not care about multicast
 
-    let ascii_offset = 48;
-    let mut ip_bytes = [0u8; 16];
-    let mut i = 0;
-    for mut octet in octets_src {
-        'inner: for _ in 0..3 {
-            let d = octet % 10;
-            octet = octet / 10;
-            ip_bytes[i] = d + ascii_offset;
-            i += 1;
-            if octet == 0 {
-                break 'inner;
-            }
-        }
-        ip_bytes[i] = 46;
-    }
-    unsafe {
-        let ip_str = core::str::from_utf8_unchecked(&ip_bytes);
-        info!(&ctx, "parsed: {}", ip_str);
-    };
+    info!(&ctx, "parsed: '{}'", ip_str);
 
     info!(
         &ctx,
