@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bpf-hole", "bpf-hole-common", "bpf-hole-ebpf"]
+members = ["bpf-hole", "bpf-hole-common", "bpf-hole-xdp", "bpf-hole-tc"]
 default-members = ["bpf-hole", "bpf-hole-common"]
 
 [workspace.dependencies]
@@ -21,6 +21,9 @@ log = { version = "0.4.22", default-features = false }
 tokio = { version = "1.40.0", default-features = false }
 which = { version = "6.0.0", default-features = false }
 
-[profile.release.package.bpf-hole-ebpf]
+[profile.release.package.bpf-hole-xdp]
+debug = 2
+codegen-units = 1
+[profile.release.package.bpf-hole-tc]
 debug = 2
 codegen-units = 1

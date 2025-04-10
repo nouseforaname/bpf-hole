@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 bpf-hole-common = { path = "../bpf-hole-common", features = ["user"] }
-
 anyhow = { workspace = true, default-features = true }
 aya = { workspace = true }
 aya-log = { workspace = true }
@@ -30,7 +29,9 @@ aya-build = { workspace = true }
 # Finally note that *any* usage of `artifact = ...` in *any* Cargo.toml in the workspace breaks
 # workflows with stable cargo; stable cargo outright refuses to load manifests that use unstable
 # features.
-bpf-hole-ebpf = { path = "../bpf-hole-ebpf" }
+
+bpf-hole-xdp= { path = "../bpf-hole-xdp" }
+bpf-hole-tc= { path = "../bpf-hole-tc" }
 
 [[bin]]
 name = "bpf-hole"

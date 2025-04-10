@@ -1,0 +1,18 @@
+[package]
+name = "bpf-hole-xdp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bpf-hole-common = { path = "../bpf-hole-common" }
+
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+network-types = "0.0.7"
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "bpf-hole-xdp-bin"
+path = "src/main.rs"
