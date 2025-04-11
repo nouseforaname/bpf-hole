@@ -6,8 +6,20 @@ This attempts to reimplement pi-hole dns block as an eBPF program.
 
 ## Why?
 
-because I don't want to run infra. Also I don't want to make my infra accessible while I'm on the road.
+To understand eBPF and what it can do or won't. I don't thing DNS packet inspection is a great usecase, but it is one that I can use to understand
+how to write eBPF programs. This should probably not be running on anyones system. You could just put a static hosts config on your system instead.
+But that's no fun is it.
 
+## Run it?
+
+if you're using `nix`:
+
+```shell
+nix run
+```
+
+
+# the below are the auto generated docs by the aya template.
 ## Prerequisites
 
 1. stable rust toolchains: `rustup toolchain install stable`
