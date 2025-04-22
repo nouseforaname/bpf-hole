@@ -9,7 +9,6 @@ bpf-hole-common = { path = "../bpf-hole-common" }
 aya-ebpf = { workspace = true }
 aya-log-ebpf = { workspace = true }
 network-types = "0.0.7"
-domain-core = "0.4.0"
 
 [build-dependencies]
 which = { workspace = true }
