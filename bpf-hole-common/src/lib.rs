@@ -1,7 +1,7 @@
 #![no_std]
+pub mod dns;
 
 use core::mem;
-
 use aya_ebpf::programs::XdpContext;
 #[inline(always)] //
 pub fn ptr_at<T>(ctx: &XdpContext, offset: usize) -> Result<*const T, ()> {
