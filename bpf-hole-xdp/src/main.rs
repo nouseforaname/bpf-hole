@@ -2,6 +2,7 @@
 #![no_main]
 
 use aya_ebpf::{bindings::xdp_action, macros::xdp, programs::XdpContext};
+use aya_log_ebpf::{debug, info};
 use bpf_hole_common::ptr_at;
 use network_types::{
     eth::{EthHdr, EtherType},
@@ -40,7 +41,7 @@ u16::from_be(unsafe { (*udphdr).source }),
 
     let src_addr = u32::from_be(unsafe { (*ipv4hdr).src_addr });
     let dst_addr = u32::from_be(unsafe { (*ipv4hdr).dst_addr });
-
+    debug!(&ctx, "src: {:i}:{}, dst: {:i}:{}", src_addr,src_port,dst_addr,dst_port );
     Ok(xdp_action::XDP_PASS)
 }
 
