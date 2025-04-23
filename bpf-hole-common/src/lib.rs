@@ -1,5 +1,6 @@
 #![no_std]
 pub mod dns;
+pub mod consts;
 
 use core::mem;
 use aya_ebpf::programs::XdpContext;
@@ -42,5 +43,5 @@ pub fn ip_str_from_u32(value: u32, buf: &mut [u8; 16]) -> &str {
         buf[i + 1] = 46;
         i += 2;
     });
-    return unsafe { core::str::from_utf8_unchecked(&buf[0..i - 2]) as &str };
+    unsafe { core::str::from_utf8_unchecked(&buf[0..i - 2]) as &str }
 }
