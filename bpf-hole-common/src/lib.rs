@@ -1,8 +1,9 @@
 #![no_std]
-pub mod dns;
 pub mod consts;
+pub mod dns;
 
 use core::mem;
+
 use aya_ebpf::programs::XdpContext;
 #[inline(always)] //
 pub fn ptr_at<T>(ctx: &XdpContext, offset: usize) -> Result<*const T, ()> {
@@ -16,7 +17,9 @@ pub fn ptr_at<T>(ctx: &XdpContext, offset: usize) -> Result<*const T, ()> {
 
     Ok((start + offset) as *const T)
 }
-
+pub fn loopback_addr_as_u32() -> u32 {
+    u32::from_be_bytes([127, 0, 0, 1]).to_be()
+}
 pub fn ip_str_from_u32(value: u32, buf: &mut [u8; 16]) -> &str {
     let mut i = 0;
     let ascii_offset = 48; // 1 is 49
