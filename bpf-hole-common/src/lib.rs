@@ -17,8 +17,8 @@ pub fn ptr_at<T>(ctx: &XdpContext, offset: usize) -> Result<*const T, ()> {
 
     Ok((start + offset) as *const T)
 }
-pub fn loopback_addr_as_u32() -> u32 {
-    u32::from_be_bytes([127, 0, 0, 1]).to_be()
+pub fn loopback_addr_as_be_u32() -> u32 {
+    u32::from_be_bytes([127, 0, 0, 1])
 }
 pub fn ip_str_from_u32(value: u32, buf: &mut [u8; 16]) -> &str {
     let mut i = 0;

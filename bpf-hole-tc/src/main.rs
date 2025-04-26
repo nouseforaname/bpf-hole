@@ -4,10 +4,7 @@
 use core::{mem::offset_of, net::Ipv4Addr};
 
 use aya_ebpf::{
-    bindings::{
-        __sk_buff, bpf_attach_type::BPF_TCX_INGRESS, BPF_F_INGRESS, BPF_F_PSEUDO_HDR,
-        BPF_F_RECOMPUTE_CSUM, TC_ACT_PIPE, TC_ACT_REDIRECT, TC_ACT_REPEAT, TC_ACT_SHOT,
-    },
+    bindings::{BPF_F_INGRESS, BPF_F_RECOMPUTE_CSUM, TC_ACT_PIPE, TC_ACT_REDIRECT},
     helpers::r#gen::bpf_redirect,
     macros::{classifier, map},
     maps::HashMap,
@@ -39,9 +36,10 @@ pub fn bpf_hole_tc(mut ctx: TcContext) -> i32 {
 
 fn try_bpf_hole_tc(ctx: &mut TcContext) -> Result<i32, ()> {
     let mut ipv4hdr: Ipv4Hdr = ctx.load(EthHdr::LEN).map_err(|_| ())?;
+    let udphdr: UdpHdr;
     match ipv4hdr.proto {
         network_types::ip::IpProto::Udp => {
-            let udphdr: UdpHdr = ctx.load(EthHdr::LEN + Ipv4Hdr::LEN).map_err(|_| ())?;
+            udphdr = ctx.load(EthHdr::LEN + Ipv4Hdr::LEN).map_err(|_| ())?;
             if u16::from_be(udphdr.dest) != 53 {
                 return Ok(TC_ACT_PIPE);
             }
@@ -86,7 +84,7 @@ fn try_bpf_hole_tc(ctx: &mut TcContext) -> Result<i32, ()> {
             Some(_) => {
                 // Is there a way to not time out and pretend that the connection was refused? Not sure if that would even be allowed in the context of traffic control eBPF but is it possible to rewrite the packet data? Send to a fake/local host?
                 // https://docs.cilium.io/en/stable/reference-guides/bpf/progtypes/
-                // according to tcpdumps this works and does in fact redirect. there is a response that can be seen by listening with `sudo tcpdump udp and host 127.0.0.1 -v`
+                // according to tcpdumps this works and does in fact redirect. there is a response that can be seen by listening with `sudo tcpdump udp and host 127.0.0.1 -v`. The `-v` is important so it will print if something went wront with recalculating the checksums on the packet after changing the ip.
                 // network data is big endian. so these u32 which we deserialzed from network bytes are as well.
                 let old_addr = ipv4hdr.dst_addr;
                 ipv4hdr.dst_addr = loopback_addr_as_be_u32();
@@ -95,8 +93,9 @@ fn try_bpf_hole_tc(ctx: &mut TcContext) -> Result<i32, ()> {
                     ctx,
                     "updated ip: {:i}, to {:i} ",
                     old_addr.to_be(),
-                    ipv4hdr.dst_addr()
+                    ipv4hdr.dst_addr
                 );
+
                 ctx.store(EthHdr::LEN, &ipv4hdr, BPF_F_RECOMPUTE_CSUM as u64)
                     .map_err(|_| ())?;
 

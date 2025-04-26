@@ -57,7 +57,6 @@ async fn main() -> anyhow::Result<()> {
         // This can happen if you remove all log statements from your eBPF program.
         warn!("failed to initialize eBPF logger xdp: {}", e);
     }
-    let Opt { iface } = opt;
 
     let program_xdp: &mut Xdp = ebpf_xdp.program_mut("bpf_hole_xdp").unwrap().try_into()?;
     program_xdp.load()?;
@@ -69,7 +68,7 @@ async fn main() -> anyhow::Result<()> {
         ebpf_tc.program_mut("bpf_hole_tc").unwrap().try_into()?;
     program_tc.load()?;
     program_tc
-        .attach(&iface, TcAttachType::Egress)
+        .attach(&opt.iface, TcAttachType::Egress)
         .context("failed to attach the TC program with EGRESS Type")?;
 
     //TODO: extract into function
