@@ -28,9 +28,13 @@
           type = "app";
           program = "${helpers.run}/bin/run";
         };
+        apps.fetch_blocklist = {
+          type = "app";
+          program = "${helpers.fetch_blocklist}/bin/run";
+        };
         apps.dump_lo = {
           type = "app";
-          program = "${helpers.dump_lo}/bin/dump_lo";
+          program = "${helpers.dump_lo}/bin/run";
         };
         #rec required to access buildInputs and nativeBuildInputs within the mkShell
         devShells.default = pkgs.mkShell rec {

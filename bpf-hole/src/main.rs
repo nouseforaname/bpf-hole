@@ -3,6 +3,7 @@ use aya::{
     maps::HashMap,
     programs::{tc, SchedClassifier, TcAttachType, Xdp, XdpFlags},
 };
+use bpf_hole::read_blocklist_to_map;
 use bpf_hole_common::consts::PACKET_DATA_BUF_LEN;
 use clap::Parser;
 #[rustfmt::skip]
@@ -13,6 +14,8 @@ use tokio::signal;
 struct Opt {
     #[clap(short, long, default_value = "eth0")]
     iface: String,
+    #[clap(short, long, default_value = "./blocklist")]
+    blocklist: String,
 }
 
 #[tokio::main]
@@ -74,20 +77,11 @@ async fn main() -> anyhow::Result<()> {
     //TODO: extract into function
     //TODO: add blocklist source implementation. file or link or something.
     println!("setting up blocklisted domain map");
+
     let mut blocklist: HashMap<_, [u8; PACKET_DATA_BUF_LEN], u8> =
         HashMap::try_from(ebpf_tc.map_mut("BLOCKLIST").unwrap())?;
-    let mut hostname_bytes = [0u8; PACKET_DATA_BUF_LEN];
-    let forbidden = b"aaa.bb.c";
-    forbidden.iter().enumerate().for_each(|(i, v)| {
-        hostname_bytes[i] = *v;
-    });
-    blocklist.insert(hostname_bytes, 1u8, 0);
-    let mut hostname_bytes = [0u8; PACKET_DATA_BUF_LEN];
-    let forbidden = b"test.com";
-    forbidden.iter().enumerate().for_each(|(i, v)| {
-        hostname_bytes[i] = *v;
-    });
-    blocklist.insert(hostname_bytes, 1u8, 0);
+
+    read_blocklist_to_map(&mut blocklist, &opt.blocklist)?;
 
     let ctrl_c = signal::ctrl_c();
     println!("Waiting for Ctrl-C...");
