@@ -2,16 +2,18 @@
 
 ## what am I looking at?
 
-This attempts to reimplement pi-hole dns block as an eBPF program.
+This attempts to reimplement pi-hole dns block as an eBPF program. It's doing packet inspection on udp traffic via TC (traffic / transmission control). If a `bad` hostname is detected, it will redirect the packet to localhost.
+It then uses a `XDP` program to drop the traffic of the redirected packet. Technically the XDP part is not necessary because we could stop the packet to ever egress the interface within the TC context. But this way we have been able to also try routing via eBPF.
 
 ## Why?
 
-To understand eBPF and what it can do or won't. I don't thing DNS packet inspection is a great usecase, but it is one that I can use to understand
-how to write eBPF programs. This should probably not be running on anyones system. You could just put a static hosts config on your system instead.
+To understand eBPF and what it can do or won't. I don't think DNS packet inspection is a great usecase, but it is one that I can use to understand
+how to write eBPF programs. This should probably not be running on anyones system but if you're feeling adventurous: `gl & hf` (You could just put a static hosts config on your system instead).
+
 But that's no fun is it.
 
 ## Run it?
-
+export BPF_HOLE_IFACE=< your interface of choice for filtering packets >
 if you're using `nix`:
 
 start bpf-hole
@@ -27,7 +29,8 @@ nix run .#dump_lo
 
 ```
 
-# the below are the auto generated docs by the aya template.
+# the below are the auto generated docs by the aya template and will tell you how to run with your system rust.
+
 ## Prerequisites
 
 1. stable rust toolchains: `rustup toolchain install stable`
