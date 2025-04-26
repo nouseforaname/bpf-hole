@@ -37,16 +37,9 @@ fn try_bpf_hole(ctx: XdpContext) -> Result<u32, ()> {
     };
 
     let dst_addr = u32::from(unsafe { (*ipv4hdr).dst_addr });
-    info!(
-        &ctx,
-        "received: {:i}:{} {:i}",
-        dst_addr,
-        dst_port,
-        loopback_addr_as_be_u32()
-    );
 
     if dst_addr == loopback_addr_as_be_u32() {
-        info!(&ctx, "dropped: {:i}:{}", dst_addr, dst_port);
+        info!(&ctx, "dropped on: {:i}:{}", dst_addr, dst_port);
         Ok(xdp_action::XDP_PASS)
     } else {
         Ok(xdp_action::XDP_PASS)
