@@ -1,6 +1,8 @@
 use anyhow::Context as _;
-use aya::maps::HashMap;
-use aya::programs::{tc, SchedClassifier, TcAttachType, Xdp, XdpFlags};
+use aya::{
+    maps::HashMap,
+    programs::{tc, SchedClassifier, TcAttachType, Xdp, XdpFlags},
+};
 use bpf_hole_common::consts::PACKET_DATA_BUF_LEN;
 use clap::Parser;
 #[rustfmt::skip]
@@ -60,7 +62,7 @@ async fn main() -> anyhow::Result<()> {
     let program_xdp: &mut Xdp = ebpf_xdp.program_mut("bpf_hole_xdp").unwrap().try_into()?;
     program_xdp.load()?;
     program_xdp
-        .attach(&iface, XdpFlags::default())
+        .attach("lo", XdpFlags::default())
         .context("failed to attach the XDP program with default flags - try changing XdpFlags::default() to XdpFlags::SKB_MODE")?;
 
     let program_tc: &mut SchedClassifier =
@@ -73,17 +75,17 @@ async fn main() -> anyhow::Result<()> {
     //TODO: extract into function
     //TODO: add blocklist source implementation. file or link or something.
     println!("setting up blocklisted domain map");
-    let mut blocklist: HashMap<_, [u8;PACKET_DATA_BUF_LEN], u8> =
-    HashMap::try_from(ebpf_tc.map_mut("BLOCKLIST").unwrap())?;
-    let mut hostname_bytes = [0u8;PACKET_DATA_BUF_LEN];
+    let mut blocklist: HashMap<_, [u8; PACKET_DATA_BUF_LEN], u8> =
+        HashMap::try_from(ebpf_tc.map_mut("BLOCKLIST").unwrap())?;
+    let mut hostname_bytes = [0u8; PACKET_DATA_BUF_LEN];
     let forbidden = b"aaa.bb.c";
-    forbidden.iter().enumerate().for_each(|(i,v)|{
+    forbidden.iter().enumerate().for_each(|(i, v)| {
         hostname_bytes[i] = *v;
     });
     blocklist.insert(hostname_bytes, 1u8, 0);
-    let mut hostname_bytes = [0u8;PACKET_DATA_BUF_LEN];
+    let mut hostname_bytes = [0u8; PACKET_DATA_BUF_LEN];
     let forbidden = b"test.com";
-    forbidden.iter().enumerate().for_each(|(i,v)|{
+    forbidden.iter().enumerate().for_each(|(i, v)| {
         hostname_bytes[i] = *v;
     });
     blocklist.insert(hostname_bytes, 1u8, 0);
