@@ -1,5 +1,6 @@
 { pkgs }:
-pkgs.writeShellApplication {
+{
+  run = pkgs.writeShellApplication {
   name = "run";
   runtimeInputs = with pkgs; [
     rustup
@@ -21,4 +22,13 @@ pkgs.writeShellApplication {
     fi
     RUST_LOG=info cargo run --config 'target."cfg(all())".runner="sudo -E"' -- --iface "''${BPF_HOLE_IFACE}"
   '';
+  };
+  dump_lo = pkgs.writeShellApplication {
+    name = "dump_lo";
+    runtimeInputs = [ pkgs.tcpdump ];
+    text = ''
+      sudo tcpdump -i lo dst localhost
+    '';
+
+  };
 }

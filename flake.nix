@@ -26,7 +26,11 @@
       {
         apps.default = {
           type = "app";
-          program = "${helpers}/bin/run";
+          program = "${helpers.run}/bin/run";
+        };
+        apps.dump_lo = {
+          type = "app";
+          program = "${helpers.dump_lo}/bin/dump_lo";
         };
         #rec required to access buildInputs and nativeBuildInputs within the mkShell
         devShells.default = pkgs.mkShell rec {

@@ -14,10 +14,18 @@ But that's no fun is it.
 
 if you're using `nix`:
 
+start bpf-hole
 ```shell
 nix run
 ```
 
+additional nix helpers:
+
+```shell
+# dump loopback iface to debug the redirected dns requests
+nix run .#dump_lo
+
+```
 
 # the below are the auto generated docs by the aya template.
 ## Prerequisites
