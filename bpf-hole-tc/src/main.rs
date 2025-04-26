@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use core::{mem::offset_of, net::Ipv4Addr};
+use core::mem::offset_of;
 
 use aya_ebpf::{
     bindings::{BPF_F_INGRESS, BPF_F_RECOMPUTE_CSUM, TC_ACT_PIPE, TC_ACT_REDIRECT},
@@ -17,6 +17,7 @@ use bpf_hole_common::{
     loopback_addr_as_be_u32,
 };
 use network_types::{eth::EthHdr, ip::Ipv4Hdr, udp::UdpHdr};
+
 #[map]
 static BLOCKLIST: HashMap<[u8; PACKET_DATA_BUF_LEN], bool> = HashMap::with_max_entries(400000, 0);
 
@@ -33,6 +34,8 @@ pub fn bpf_hole_tc(mut ctx: TcContext) -> i32 {
         }
     }
 }
+
+const IFINDEX_LO: u32 = 1;
 
 fn try_bpf_hole_tc(ctx: &mut TcContext) -> Result<i32, ()> {
     let mut ipv4hdr: Ipv4Hdr = ctx.load(EthHdr::LEN).map_err(|_| ())?;
@@ -82,11 +85,12 @@ fn try_bpf_hole_tc(ctx: &mut TcContext) -> Result<i32, ()> {
         }
         match blocked {
             Some(_) => {
-                // Is there a way to not time out and pretend that the connection was refused? Not sure if that would even be allowed in the context of traffic control eBPF but is it possible to rewrite the packet data? Send to a fake/local host?
-                // https://docs.cilium.io/en/stable/reference-guides/bpf/progtypes/
-                // according to tcpdumps this works and does in fact redirect. there is a response that can be seen by listening with `sudo tcpdump udp and host 127.0.0.1 -v`. The `-v` is important so it will print if something went wront with recalculating the checksums on the packet after changing the ip.
-                // network data is big endian. so these u32 which we deserialzed from network bytes are as well.
+                // according to tcpdumps this works and does in fact redirect.
+                // there is a packet coming into `lo` that can be seen by listening with `sudo tcpdump udp and host 127.0.0.1 -v`.
+                // The `-v` is important so it will print if something went wront with recalculating the checksums on the ip L3 header after changing the addr.
+
                 let old_addr = ipv4hdr.dst_addr;
+                // network data is big endian. so these u32 which we deserialzed from network bytes are as well.
                 ipv4hdr.dst_addr = loopback_addr_as_be_u32();
 
                 info!(
@@ -107,12 +111,12 @@ fn try_bpf_hole_tc(ctx: &mut TcContext) -> Result<i32, ()> {
                 )
                 .map_err(|_| ())?;
 
-                debug!(ctx, "updated interface: {}", (*ctx.skb.skb).ifindex);
+                info!(ctx, "redirecting '{}'", data);
 
-                // there are not many rust docs around bpf_redirect, but upstream libbpf has some. the signature seems to match
+                // there are not many rust/aya docs around bpf_redirect, but upstream libbpf has some. the signature seems to match
                 // https://docs.ebpf.io/linux/helper-function/bpf_redirect/
-                let _ = bpf_redirect(1, BPF_F_INGRESS as u64); // TODO: find out how to read ifindex for lo from  system. 1 == `lo` on my system.
-                Ok(TC_ACT_REDIRECT)
+                let ret = bpf_redirect(IFINDEX_LO, BPF_F_INGRESS as u64); // TODO: find out how to read ifindex for lo from  system. 1 == `lo` on my system.
+                Ok(ret as i32)
             }
             _ => {
                 debug!(ctx, "allowing: {} ", data);
