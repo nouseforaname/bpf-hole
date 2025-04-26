@@ -29,6 +29,42 @@ nix run .#dump_lo
 
 ```
 
+## known limitations
+
+### no support for filtering dnsoverhttps
+it seems to be possible to do this though. We do not even need to care about decrypting the traffic:
+
+see: https://github.com/gojue/ecapture
+
+
+### no support for filtering ipv6 dns packets.
+
+if using nslookup / dig eventually it will resolve because there seems to be a fallback to ipv6 in dig/nslookup:
+```
+nslookup metric.zzzquil.com
+;; communications error to XXX.XXX.CCC.1#53: timed out
+;; communications error to XXX.XXX.CCC.1#53: timed out
+;; communications error to XXX.XXX.CCC.1#53: timed out
+Server:         fdca:XXXX:XXXX:X:XXXX:XXXX:XXXX:79f4
+Address:        fdca:XXXX:XXXX:X:XXXX:XXXX:XXXX:79f4#53
+
+Non-authoritative answer:
+metric.zzzquil.com      canonical name = zzzquil-en-us-redesign.azureedge.net.
+zzzquil-en-us-redesign.azureedge.net    canonical name = zzzquil-en-us-redesign.afd.azureedge.net.
+zzzquil-en-us-redesign.afd.azureedge.net        canonical name = azureedge-t-prod.trafficmanager.net.
+azureedge-t-prod.trafficmanager.net     canonical name = shed.dual-low.s-part-0017.t-0009.t-msedge.net.
+shed.dual-low.s-part-0017.t-0009.t-msedge.net   canonical name = azurefd-t-fb-prod.trafficmanager.net.
+azurefd-t-fb-prod.trafficmanager.net    canonical name = dual.s-part-0017.t-0009.fb-t-msedge.net.
+dual.s-part-0017.t-0009.fb-t-msedge.net canonical name = s-part-0017.t-0009.fb-t-msedge.net.
+Name:   s-part-0017.t-0009.fb-t-msedge.net
+Address: 13.107.253.45
+Name:   s-part-0017.t-0009.fb-t-msedge.net
+Address: 2620:1ec:29:1::45
+
+```
+
+there's a high chance the same will happen in the browser.
+
 # the below are the auto generated docs by the aya template and will tell you how to run with your system rust.
 
 ## Prerequisites
