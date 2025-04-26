@@ -17,8 +17,8 @@
         aya-tool = import ./nix/pkgs/aya-tool/default.nix {
           inherit (pkgs) fetchFromGitHub cargo cacert rustPlatform;
           version = "0.13.1";
-          hash = "sha256-O3fiO3qlylSkSQCD2h+6h1nOTd/FFhkd6fXplTrrpHk=";
-          cargoHash = "sha256-00GSHAh+QhXKKF6l9Yzy6e2cZo8fPpx5k1kKm7gVe54=";
+          hash = "sha256-UFT62fiA/rU1lI73k/gF/GVzVIFcXcXgTkfUL7wrBhk=";
+          cargoHash = "sha256-hxxvsH2xn4DPvs+1QHbrbs+CE5oXut0bnUyf3lPKZ0Q=";
         };
         helpers = import nix/helpers.nix { inherit pkgs; };
 
@@ -37,6 +37,7 @@
             cargo-generate
             bpf-linker
             aya-tool
+            rust-analyzer
           ];
           nativeBuildInputs = [ pkgs.pkg-config ];
           packages = [];
@@ -45,6 +46,8 @@
           shellHook = ''
             export PATH=$PATH:''${CARGO_HOME:-~/.cargo}/bin
             export PATH=$PATH:''${RUSTUP_HOME:-~/.rustup}/toolchains/$RUSTC_VERSION-x86_64-unknown-linux-gnu/bin/
+            #do not use the rustup rust-analyzer. once the component is added it will try to compile it for bpfel. which won't work.
+            ln -fs ${pkgs.rust-analyzer}/bin/rust-analyzer ''${RUSTUP_HOME:-~/.rustup}/toolchains/nightly-x86_64-unknown-linux-gnu/bin/rust-analyzer
           '';
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (buildInputs ++ nativeBuildInputs);
 
