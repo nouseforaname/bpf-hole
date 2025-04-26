@@ -14,7 +14,6 @@ rustPlatform.buildRustPackage {
     owner = "aya-rs";
     repo = "aya";
     rev = "aya-v${version}";
-    #hash = pkgs.lib.fakeHash;
     hash = hash;
 
     nativeBuildInputs = [
