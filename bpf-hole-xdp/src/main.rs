@@ -1,9 +1,14 @@
 #![no_std]
 #![no_main]
 
-use aya_ebpf::{bindings::xdp_action, macros::xdp, programs::XdpContext};
+use aya_ebpf::{
+    bindings::xdp_action::{self, XDP_PASS},
+    macros::xdp,
+    programs::XdpContext,
+};
 use aya_log_ebpf::{debug, info};
-use bpf_hole_common::{loopback_addr_as_be_u32, ptr_at};
+use bpf_hole_common::{loopback_addr_v4_as_be_u32, IpVersion};
+use bpf_hole_xdp::ptr_at;
 use network_types::{
     eth::{EthHdr, EtherType},
     ip::{IpProto, Ipv4Hdr},
@@ -20,27 +25,28 @@ pub fn bpf_hole_xdp(ctx: XdpContext) -> u32 {
 
 fn try_bpf_hole(ctx: XdpContext) -> Result<u32, ()> {
     debug!(&ctx, "enter xdp");
-    let ethhdr: *const EthHdr = ptr_at(&ctx, 0)?; //
-    match unsafe { (*ethhdr).ether_type } {
-        EtherType::Ipv4 => {}
+    let ethhdr: EthHdr = unsafe { *ptr_at(&ctx, 0)? };
+    let mut version_str = "";
+    let ip_hdr_enum: IpVersion = match ethhdr.ether_type {
+        EtherType::Ipv4 => IpVersion::V4({
+            version_str = "V4";
+            unsafe { *ptr_at(&ctx, EthHdr::LEN).map_err(|_| ())? }
+        }),
+        EtherType::Ipv6 => IpVersion::V6({
+            version_str = "V4";
+            unsafe { *ptr_at(&ctx, EthHdr::LEN).map_err(|_| ())? }
+        }),
         _ => return Ok(xdp_action::XDP_PASS),
-    }
-    let ipv4hdr: *const Ipv4Hdr = ptr_at(&ctx, EthHdr::LEN)?;
-
-    let dst_port = match unsafe { (*ipv4hdr).proto } {
-        IpProto::Tcp => return Ok(xdp_action::XDP_PASS),
-        IpProto::Udp => {
-            let udphdr: *const UdpHdr = ptr_at(&ctx, EthHdr::LEN + Ipv4Hdr::LEN)?;
-            u16::from_be(unsafe { (*udphdr).dest })
-        }
-        _ => return Err(()),
     };
 
-    let dst_addr = u32::from(unsafe { (*ipv4hdr).dst_addr });
+    let udphdr: UdpHdr = match ip_hdr_enum.proto() {
+        IpProto::Udp => unsafe { *ptr_at(&ctx, EthHdr::LEN + ip_hdr_enum.offset())? },
+        _ => return Ok(XDP_PASS),
+    };
 
-    if dst_addr == loopback_addr_as_be_u32() {
-        info!(&ctx, "dropped on: {:i}:{}", dst_addr, dst_port);
-        Ok(xdp_action::XDP_PASS)
+    if udphdr.dest == 53u16.to_be() {
+        info!(&ctx, "{} dropped on lo", version_str, udphdr.dest.to_le());
+        Ok(xdp_action::XDP_DROP)
     } else {
         Ok(xdp_action::XDP_PASS)
     }

@@ -10,6 +10,7 @@ user = ["aya"]
 [dependencies]
 aya = { workspace = true, optional = true }
 aya-ebpf = { workspace = true }
+network-types = "0.0.7"
 
 [lib]
 path = "src/lib.rs"
