@@ -26,14 +26,14 @@ pub fn bpf_hole_xdp(ctx: XdpContext) -> u32 {
 fn try_bpf_hole(ctx: XdpContext) -> Result<u32, ()> {
     debug!(&ctx, "enter xdp");
     let ethhdr: EthHdr = unsafe { *ptr_at(&ctx, 0)? };
-    let mut version_str = "";
+    let version_str;
     let ip_hdr_enum: IpVersion = match ethhdr.ether_type {
         EtherType::Ipv4 => IpVersion::V4({
             version_str = "V4";
             unsafe { *ptr_at(&ctx, EthHdr::LEN).map_err(|_| ())? }
         }),
         EtherType::Ipv6 => IpVersion::V6({
-            version_str = "V4";
+            version_str = "V6";
             unsafe { *ptr_at(&ctx, EthHdr::LEN).map_err(|_| ())? }
         }),
         _ => return Ok(xdp_action::XDP_PASS),
