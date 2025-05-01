@@ -17,8 +17,8 @@
         aya-tool = import ./nix/pkgs/aya-tool/default.nix {
           inherit (pkgs) fetchFromGitHub cargo cacert rustPlatform;
           version = "0.13.1";
-          hash = "sha256-UFT62fiA/rU1lI73k/gF/GVzVIFcXcXgTkfUL7wrBhk=";
-          cargoHash = "sha256-hxxvsH2xn4DPvs+1QHbrbs+CE5oXut0bnUyf3lPKZ0Q=";
+          hash = "sha256-SKYhbtURYmQ6MgSy49Jmtxi1WzPX+wdMVN0QEYdk8LU=";
+          cargoHash = "sha256-J6Ojze8AUWAHTPxqMNJIYRaHN0jMdUc+zG6nkMMtmYk=";
         };
         helpers = import nix/helpers.nix { inherit pkgs; };
 
