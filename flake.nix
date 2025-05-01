@@ -45,17 +45,17 @@
             cargo-generate
             bpf-linker
             aya-tool
-            rust-analyzer
           ];
           nativeBuildInputs = [ pkgs.pkg-config ];
           packages = [];
           RUSTC_VERSION = overrides.toolchain.channel;
           LIBCLANG_PATH = pkgs.lib.makeLibraryPath [ pkgs.llvmPackages_latest.libclang.lib ];
           shellHook = ''
-            export PATH=$PATH:''${CARGO_HOME:-~/.cargo}/bin
-            export PATH=$PATH:''${RUSTUP_HOME:-~/.rustup}/toolchains/$RUSTC_VERSION-x86_64-unknown-linux-gnu/bin/
+            PATH=$PATH:''${CARGO_HOME:-~/.cargo}/bin
+            PATH=$PATH:''${RUSTUP_HOME:-~/.rustup}/toolchains/$RUSTC_VERSION-x86_64-unknown-linux-gnu/bin/
             #do not use the rustup rust-analyzer. once the component is added it will try to compile it for bpfel. which won't work.
-            ln -fs ${pkgs.rust-analyzer}/bin/rust-analyzer ''${RUSTUP_HOME:-~/.rustup}/toolchains/nightly-x86_64-unknown-linux-gnu/bin/rust-analyzer
+            ln -fs ${pkgs.rust-analyzer}/bin/rust-analyzer ''${rustup_home:-~/.rustup}/toolchains/nightly-x86_64-unknown-linux-gnu/bin/rust-analyzer
+            ln -fs ${pkgs.rustfmt}/bin/rustfmt ''${rustup_home:-~/.rustup}/toolchains/nightly-x86_64-unknown-linux-gnu/bin/rustfmt
           '';
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (buildInputs ++ nativeBuildInputs);
 
