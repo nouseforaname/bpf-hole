@@ -46,16 +46,13 @@ const IFINDEX_LO: u32 = 1;
 fn try_bpf_hole_tc(ctx: &mut TcContext) -> Result<i32, ()> {
     let ethhdr: EthHdr = ctx.load(0).map_err(|_| ())?;
 
-    let ip_hdr_offset;
     let iphdr_version: IpVersion = match ethhdr.ether_type {
         network_types::eth::EtherType::Ipv4 => {
             debug!(ctx, "ipv4 detected");
-            ip_hdr_offset = Ipv4Hdr::LEN;
             IpVersion::V4(ctx.load::<Ipv4Hdr>(EthHdr::LEN).map_err(|_| ())?)
         }
         network_types::eth::EtherType::Ipv6 => {
             debug!(ctx, "ipv6 detected");
-            ip_hdr_offset = Ipv6Hdr::LEN;
             IpVersion::V6(ctx.load::<Ipv6Hdr>(EthHdr::LEN).map_err(|_| ())?)
         }
         _ => {
@@ -64,7 +61,9 @@ fn try_bpf_hole_tc(ctx: &mut TcContext) -> Result<i32, ()> {
     };
 
     let udphdr: UdpHdr = match iphdr_version.proto() {
-        network_types::ip::IpProto::Udp => ctx.load(EthHdr::LEN + ip_hdr_offset).map_err(|_| ())?,
+        network_types::ip::IpProto::Udp => ctx
+            .load(EthHdr::LEN + iphdr_version.offset())
+            .map_err(|_| ())?,
         _ => return Ok(TC_ACT_PIPE),
     };
 
@@ -75,7 +74,7 @@ fn try_bpf_hole_tc(ctx: &mut TcContext) -> Result<i32, ()> {
     }
 
     let dns_packet: DNSHeader = ctx
-        .load(EthHdr::LEN + ip_hdr_offset + UdpHdr::LEN)
+        .load(EthHdr::LEN + iphdr_version.offset() + UdpHdr::LEN)
         .map_err(|_| ())?;
 
     debug!(
