@@ -11,9 +11,9 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         overrides = (builtins.fromTOML (builtins.readFile (self + "/rust-toolchain.toml")));
-        libPath = pkgs.lib.makeLibraryPath [
-          # load external libraries that you need in your rust project here
-        ];
+        #libPath = pkgs.lib.makeLibraryPath [
+        #  # load external libraries that you need in your rust project here
+        #];
         aya-tool = import ./nix/pkgs/aya-tool/default.nix {
           inherit (pkgs) fetchFromGitHub cargo cacert rustPlatform;
           version = "0.13.1";
@@ -40,6 +40,8 @@
         devShells.default = pkgs.mkShell rec {
 
           buildInputs = with pkgs; [
+            dig
+            tcpdump
             clang
             rustup
             cargo-generate
@@ -47,7 +49,7 @@
             aya-tool
           ];
           nativeBuildInputs = [ pkgs.pkg-config ];
-          packages = [];
+          packages = [ ];
           RUSTC_VERSION = overrides.toolchain.channel;
           LIBCLANG_PATH = pkgs.lib.makeLibraryPath [ pkgs.llvmPackages_latest.libclang.lib ];
           shellHook = ''
