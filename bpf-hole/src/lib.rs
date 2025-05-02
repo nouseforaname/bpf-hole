@@ -13,14 +13,14 @@ pub fn read_blocklist_to_map(
     for (i, line) in std::io::BufRead::lines(reader).enumerate() {
         match line {
             Ok(v) => {
-                info!("adding '{}' to blocklist", v);
+                println!("adding '{}' to blocklist", v);
                 let mut bytes = [0u8; PACKET_DATA_BUF_LEN];
                 for (bi, b) in v.bytes().enumerate() {
                     bytes[bi] = b as u8;
                 }
                 map.insert(bytes, 1u8, 0)?;
             }
-            Err(e) => info!("failed reading line {} with {}", i, e),
+            Err(e) => println!("failed reading line {} with {}", i, e),
         }
     }
     Ok(())
