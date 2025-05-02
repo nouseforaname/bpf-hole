@@ -20,7 +20,7 @@
         read -r BPF_HOLE_IFACE
         export BPF_HOLE_IFACE
       fi
-      RUST_LOG=info cargo run --config 'target."cfg(all())".runner="sudo -E"' -- --iface "''${BPF_HOLE_IFACE}"
+      RUST_LOG=info cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --iface "''${BPF_HOLE_IFACE}"
     '';
   };
   fetch_blocklist = pkgs.writeShellApplication {
