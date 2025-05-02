@@ -64,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
     let program_xdp: &mut Xdp = ebpf_xdp.program_mut("bpf_hole_xdp").unwrap().try_into()?;
     program_xdp.load()?;
     program_xdp
-        .attach("lo", XdpFlags::default())
+        .attach(&opt.iface, XdpFlags::default())
         .context("failed to attach the XDP program with default flags - try changing XdpFlags::default() to XdpFlags::SKB_MODE")?;
 
     let program_tc: &mut SchedClassifier =
