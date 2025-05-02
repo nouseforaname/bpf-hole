@@ -7,7 +7,11 @@ use aya_ebpf::{
     programs::XdpContext,
 };
 use aya_log_ebpf::{debug, info};
-use bpf_hole_common::{loopback_addr_v4_as_be_u32, IpVersion};
+use bpf_hole_common::{
+    consts::PACKET_DATA_BUF_LEN,
+    dns::{DNSHeader},
+    loopback_addr_v4_as_be_u32, IpVersion,
+};
 use bpf_hole_xdp::ptr_at;
 use network_types::{
     eth::{EthHdr, EtherType},

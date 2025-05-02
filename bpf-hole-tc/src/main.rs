@@ -15,7 +15,7 @@ use aya_ebpf::{
 use aya_log_ebpf::{debug, info};
 use bpf_hole_common::{
     consts::PACKET_DATA_BUF_LEN,
-    dns::{decode_qname_data, DNSPacket},
+    dns::{decode_qname_data, DNSHeader},
     loopback_addr_v4_as_be_u32, loopback_addr_v6, IpVersion,
 };
 use network_types::{
@@ -74,7 +74,7 @@ fn try_bpf_hole_tc(ctx: &mut TcContext) -> Result<i32, ()> {
         return Ok(TC_ACT_PIPE);
     }
 
-    let dns_packet: DNSPacket = ctx
+    let dns_packet: DNSHeader = ctx
         .load(EthHdr::LEN + ip_hdr_offset + UdpHdr::LEN)
         .map_err(|_| ())?;
 
@@ -88,7 +88,7 @@ fn try_bpf_hole_tc(ctx: &mut TcContext) -> Result<i32, ()> {
         dns_packet.ARCOUNT.to_be()
     );
 
-    let offset = EthHdr::LEN + ip_hdr_offset + UdpHdr::LEN + DNSPacket::HDRLEN;
+    let offset = EthHdr::LEN + iphdr_version.offset() + UdpHdr::LEN + DNSHeader::HDRLEN;
     let mut buf = [0u8; PACKET_DATA_BUF_LEN];
 
     // unfortunately aya will generate code that won't pass the verifier:

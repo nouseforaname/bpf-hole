@@ -1,5 +1,5 @@
 #[repr(C)]
-pub struct DNSPacket {
+pub struct DNSHeader {
     pub ID: u16, //2 byte
     pub HEADER_DATA: u16,
     // QR: bit,
@@ -16,7 +16,7 @@ pub struct DNSPacket {
     pub ARCOUNT: u16, //2 byte
 }
 
-impl DNSPacket {
+impl DNSHeader {
     pub const HDRLEN: usize = 12;
     pub const DATA_SUFFIX_BYTES: usize = 4;
 }
