@@ -1,4 +1,5 @@
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct DNSHeader {
     pub ID: u16, //2 byte
     pub HEADER_DATA: u16,

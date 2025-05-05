@@ -3,7 +3,7 @@
 
 use aya_ebpf::{
     bindings::xdp_action::{self, XDP_PASS},
-    helpers::bpf_probe_read_kernel_buf,
+    helpers::{bpf_probe_read_kernel_buf, r#gen::bpf_xdp_store_bytes},
     macros::xdp,
     programs::XdpContext,
 };
@@ -12,7 +12,7 @@ use aya_log_ebpf::info;
 use bpf_hole_common::{
     consts::PACKET_DATA_BUF_LEN,
     dns::{DNSAnswer, DNSHeader},
-    IpVersion,
+    loopback_addr_v4_as_be_u32, IpVersion,
 };
 use bpf_hole_xdp::ptr_at;
 use network_types::{
@@ -53,6 +53,7 @@ fn try_bpf_hole(ctx: &XdpContext) -> Result<u32, ()> {
 
     let payload_offset = EthHdr::LEN + ip_hdr_enum.offset() + UdpHdr::LEN + DNSHeader::HDRLEN;
 
+    let payload_offset = EthHdr::LEN + ip_hdr_enum.offset() + UdpHdr::LEN + DNSHeader::HDRLEN;
     let dns_packet_data_ptr: *const _ = ptr_at(ctx, payload_offset)?;
 
     unsafe { bpf_probe_read_kernel_buf(dns_packet_data_ptr, &mut buf).map_err(|_| ())? };
@@ -65,16 +66,26 @@ fn try_bpf_hole(ctx: &XdpContext) -> Result<u32, ()> {
     info!(ctx, "class: {}", unsafe { (*dns_answer_ptr).class() });
     info!(ctx, "ttl: {}", unsafe { (*dns_answer_ptr).ttl() });
     info!(ctx, "data_len: {}", unsafe { (*dns_answer_ptr).data_len() });
-    Ok(XDP_PASS)
-    //let payload_len = ctx.data_end() - ctx.data();
-    //info!(ctx,"packet len: {}", payload_len);
-
-    //let answer= unsafe { (ptr_at::<DNSAnswer>(ctx, answer_offset)?).as_ref().ok_or(())? };
-
-    //info!(ctx, "class: {}", unsafe {(*dns_answer_ptr).rtype.f1});
-    //info!(ctx, "rtype: {}", (*dns_answer_ptr).rtype.to_be());
-    //let data: &str = unsafe { core::str::from_utf8_unchecked(&buf[..answer_offset.clamp(1,buf.len()-1)]) };
-    //let ttl= 5;
+    match unsafe { (*dns_answer_ptr).class() } {
+        1 => {
+            info!(
+                ctx,
+                "first entry record => v4 replacing with {:i}",
+                loopback_addr_v4_as_be_u32()
+            );
+            let buf: [u8; 4] = loopback_addr_v4_as_be_u32().to_be_bytes();
+            let v_addr_offset = answer_offset + size_of::<DNSAnswer>();
+            unsafe {
+                bpf_xdp_store_bytes(ctx.ctx, v_addr_offset as u32, buf.as_ptr() as *mut _, 4)
+            };
+            Ok(XDP_PASS)
+        }
+        28 => {
+            info!(ctx, "found AAAA record => v6");
+            Ok(XDP_PASS)
+        }
+        _ => Ok(XDP_PASS),
+    }
 }
 
 #[inline(always)]
