@@ -4,9 +4,7 @@
 use core::mem::offset_of;
 
 use aya_ebpf::{
-    bindings::{
-        BPF_F_INGRESS, BPF_F_RECOMPUTE_CSUM, TC_ACT_OK, TC_ACT_PIPE, TC_ACT_REDIRECT, TC_ACT_SHOT,
-    },
+    bindings::{BPF_F_INGRESS, BPF_F_RECOMPUTE_CSUM, TC_ACT_PIPE},
     helpers::r#gen::bpf_redirect,
     macros::{classifier, map},
     maps::HashMap,

@@ -4,15 +4,16 @@
 use aya_ebpf::{
     bindings::xdp_action::{self, XDP_PASS},
     helpers::{bpf_probe_read_kernel_buf, r#gen::bpf_xdp_store_bytes},
-    macros::xdp,
+    macros::{map, xdp},
+    maps::HashMap,
     programs::XdpContext,
 };
 
 use aya_log_ebpf::info;
 use bpf_hole_common::{
     consts::PACKET_DATA_BUF_LEN,
-    dns::{DNSAnswer, DNSHeader},
-    loopback_addr_v4_as_be_u32, IpVersion,
+    dns::{decode_qname_data, DNSAnswer, DNSHeader},
+    IpVersion,
 };
 use bpf_hole_xdp::ptr_at;
 use network_types::{
@@ -20,6 +21,9 @@ use network_types::{
     ip::IpProto,
     udp::UdpHdr,
 };
+
+#[map]
+static BLOCKLIST: HashMap<[u8; PACKET_DATA_BUF_LEN], bool> = HashMap::with_max_entries(400000, 0);
 
 #[xdp]
 pub fn bpf_hole_xdp(ctx: XdpContext) -> u32 {
@@ -52,44 +56,62 @@ fn try_bpf_hole(ctx: &XdpContext) -> Result<u32, ()> {
     };
 
     let payload_offset = EthHdr::LEN + ip_hdr_enum.offset() + UdpHdr::LEN + DNSHeader::HDRLEN;
-
-    let payload_offset = EthHdr::LEN + ip_hdr_enum.offset() + UdpHdr::LEN + DNSHeader::HDRLEN;
     let dns_packet_data_ptr: *const _ = ptr_at(ctx, payload_offset)?;
 
     unsafe { bpf_probe_read_kernel_buf(dns_packet_data_ptr, &mut buf).map_err(|_| ())? };
 
-    let answer_offset = get_answer_offset_from_payload(&mut buf) + payload_offset;
+    decode_qname_data(&mut buf);
 
-    let dns_answer_ptr: *const DNSAnswer = ptr_at(ctx, answer_offset)?;
+    match unsafe { BLOCKLIST.get(&buf) } {
+        Some(_) => {
+            unsafe { bpf_probe_read_kernel_buf(dns_packet_data_ptr, &mut buf).map_err(|_| ())? };
+            let answer_offset = get_answer_offset_from_payload(&mut buf) + payload_offset;
 
-    info!(ctx, "type: {}", unsafe { (*dns_answer_ptr).rtype() });
-    info!(ctx, "class: {}", unsafe { (*dns_answer_ptr).class() });
-    info!(ctx, "ttl: {}", unsafe { (*dns_answer_ptr).ttl() });
-    info!(ctx, "data_len: {}", unsafe { (*dns_answer_ptr).data_len() });
-    let v_addr_offset = answer_offset + size_of::<DNSAnswer>();
-    match unsafe { (*dns_answer_ptr).rtype() } {
-        // A record => v4 addr
-        1 => {
-            info!(
-                ctx,
-                "first entry record => v4 replacing with {:i}",
-                0u32.to_be()
-            );
-            let ip_buf = [0u8; 4];
-            unsafe {
-                bpf_xdp_store_bytes(ctx.ctx, v_addr_offset as u32, ip_buf.as_ptr() as *mut _, 4)
-            };
+            let dns_answer_ptr: *const DNSAnswer = ptr_at(ctx, answer_offset)?;
+
+            info!(ctx, "type: {}", unsafe { (*dns_answer_ptr).rtype() });
+            info!(ctx, "class: {}", unsafe { (*dns_answer_ptr).class() });
+            info!(ctx, "ttl: {}", unsafe { (*dns_answer_ptr).ttl() });
+            info!(ctx, "data_len: {}", unsafe { (*dns_answer_ptr).data_len() });
+            let ip_addr_offset = answer_offset + size_of::<DNSAnswer>();
+            match unsafe { (*dns_answer_ptr).rtype() } {
+                // A record => v4 addr
+                1 => {
+                    info!(
+                        ctx,
+                        "first entry record => v4 replacing with {:i}",
+                        0u32.to_be()
+                    );
+                    let ip_buf = [0u8; 4];
+                    unsafe {
+                        bpf_xdp_store_bytes(
+                            ctx.ctx,
+                            ip_addr_offset as u32,
+                            ip_buf.as_ptr() as *mut _,
+                            4,
+                        )
+                    };
+                }
+                // AAAA record => v6 addr
+                28 => {
+                    let ip_buf = [0u8; 16];
+                    info!(ctx, "found AAAA record => v6 replacing with {:i}", ip_buf);
+                    unsafe {
+                        bpf_xdp_store_bytes(
+                            ctx.ctx,
+                            ip_addr_offset as u32,
+                            ip_buf.as_ptr() as *mut _,
+                            16,
+                        )
+                    };
+                }
+                // don't fiddle with anything else for now
+                _ => {}
+            }
         }
-        // AAAA record => v6 addr
-        28 => {
-            let ip_buf = [0u8; 16];
-            info!(ctx, "found AAAA record => v6 replacing with {:i}", ip_buf);
-            unsafe {
-                bpf_xdp_store_bytes(ctx.ctx, v_addr_offset as u32, ip_buf.as_ptr() as *mut _, 16)
-            };
-        }
-        _ => {}
+        None => return Ok(XDP_PASS),
     }
+
     Ok(XDP_PASS)
 }
 

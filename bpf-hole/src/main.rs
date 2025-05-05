@@ -14,6 +14,8 @@ use tokio::signal;
 struct Opt {
     #[clap(short, long, default_value = "eth0")]
     iface: String,
+    #[clap(short, long, default_value = "xdp")]
+    mode: String,
     #[clap(short, long, default_value = "./blocklist")]
     blocklist: String,
 }
@@ -36,13 +38,6 @@ async fn main() -> anyhow::Result<()> {
     }
     // error adding clsact to the interface if it is already added is harmless
     // the full cleanup can be done with 'sudo tc qdisc del dev <iface> clsact'.
-
-    let _ = tc::qdisc_add_clsact(&opt.iface);
-
-    // This will include your eBPF object file as raw bytes at compile-time and load it at
-    // runtime. This approach is recommended for most real-world use cases. If you would
-    // like to specify the eBPF program at runtime rather than at compile-time, you can
-    // reach for `Bpf::load_file` instead.
     let mut ebpf_xdp = aya::Ebpf::load(aya::include_bytes_aligned!(concat!(
         env!("OUT_DIR"),
         "/bpf-hole-xdp-bin"
@@ -51,35 +46,43 @@ async fn main() -> anyhow::Result<()> {
         env!("OUT_DIR"),
         "/bpf-hole-tc-bin"
     )))?;
+    let mut blocklist: HashMap<_, [u8; PACKET_DATA_BUF_LEN], u8>;
+    match opt.mode.as_str() {
+        "xdp" => {
+            if let Err(e) = aya_log::EbpfLogger::init(&mut ebpf_xdp) {
+                // This can happen if you remove all log statements from your eBPF program.
+                warn!("failed to initialize eBPF logger xdp: {}", e);
+            }
+            let program_xdp: &mut Xdp = ebpf_xdp.program_mut("bpf_hole_xdp").unwrap().try_into()?;
+            program_xdp.load()?;
+            program_xdp
+                .attach(&opt.iface, XdpFlags::default())
+                .context("failed to attach the XDP program with default flags - try changing XdpFlags::default() to XdpFlags::SKB_MODE")?;
 
-    if let Err(e) = aya_log::EbpfLogger::init(&mut ebpf_tc) {
-        // This can happen if you remove all log statements from your eBPF program.
-        warn!("failed to initialize eBPF logger tc: {}", e);
+            blocklist = HashMap::try_from(ebpf_xdp.map_mut("BLOCKLIST").unwrap())?;
+        }
+        "tc" => {
+            let _ = tc::qdisc_add_clsact(&opt.iface);
+
+            if let Err(e) = aya_log::EbpfLogger::init(&mut ebpf_tc) {
+                // This can happen if you remove all log statements from your eBPF program.
+                warn!("failed to initialize eBPF logger tc: {}", e);
+            }
+            let program_tc: &mut SchedClassifier =
+                ebpf_tc.program_mut("bpf_hole_tc").unwrap().try_into()?;
+            program_tc.load()?;
+            program_tc
+                .attach(&opt.iface, TcAttachType::Egress)
+                .context("failed to attach the TC program with EGRESS Type")?;
+            blocklist = HashMap::try_from(ebpf_tc.map_mut("BLOCKLIST").unwrap())?;
+        }
+        _ => {
+            println!("Mode {} is not known.", opt.mode);
+            return Ok(());
+        }
     }
-    if let Err(e) = aya_log::EbpfLogger::init(&mut ebpf_xdp) {
-        // This can happen if you remove all log statements from your eBPF program.
-        warn!("failed to initialize eBPF logger xdp: {}", e);
-    }
 
-    let program_xdp: &mut Xdp = ebpf_xdp.program_mut("bpf_hole_xdp").unwrap().try_into()?;
-    program_xdp.load()?;
-    program_xdp
-        .attach(&opt.iface, XdpFlags::default())
-        .context("failed to attach the XDP program with default flags - try changing XdpFlags::default() to XdpFlags::SKB_MODE")?;
-
-    let program_tc: &mut SchedClassifier =
-        ebpf_tc.program_mut("bpf_hole_tc").unwrap().try_into()?;
-    program_tc.load()?;
-    program_tc
-        .attach(&opt.iface, TcAttachType::Egress)
-        .context("failed to attach the TC program with EGRESS Type")?;
-
-    //TODO: extract into function
-    //TODO: add blocklist source implementation. file or link or something.
     println!("setting up blocklisted domain map");
-
-    let mut blocklist: HashMap<_, [u8; PACKET_DATA_BUF_LEN], u8> =
-        HashMap::try_from(ebpf_tc.map_mut("BLOCKLIST").unwrap())?;
 
     read_blocklist_to_map(&mut blocklist, &opt.blocklist)?;
 
