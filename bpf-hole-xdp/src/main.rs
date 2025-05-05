@@ -66,26 +66,31 @@ fn try_bpf_hole(ctx: &XdpContext) -> Result<u32, ()> {
     info!(ctx, "class: {}", unsafe { (*dns_answer_ptr).class() });
     info!(ctx, "ttl: {}", unsafe { (*dns_answer_ptr).ttl() });
     info!(ctx, "data_len: {}", unsafe { (*dns_answer_ptr).data_len() });
-    match unsafe { (*dns_answer_ptr).class() } {
+    let v_addr_offset = answer_offset + size_of::<DNSAnswer>();
+    match unsafe { (*dns_answer_ptr).rtype() } {
+        // A record => v4 addr
         1 => {
             info!(
                 ctx,
                 "first entry record => v4 replacing with {:i}",
-                loopback_addr_v4_as_be_u32()
+                0u32.to_be()
             );
-            let buf: [u8; 4] = loopback_addr_v4_as_be_u32().to_be_bytes();
-            let v_addr_offset = answer_offset + size_of::<DNSAnswer>();
+            let ip_buf = [0u8; 4];
             unsafe {
-                bpf_xdp_store_bytes(ctx.ctx, v_addr_offset as u32, buf.as_ptr() as *mut _, 4)
+                bpf_xdp_store_bytes(ctx.ctx, v_addr_offset as u32, ip_buf.as_ptr() as *mut _, 4)
             };
-            Ok(XDP_PASS)
         }
+        // AAAA record => v6 addr
         28 => {
-            info!(ctx, "found AAAA record => v6");
-            Ok(XDP_PASS)
+            let ip_buf = [0u8; 16];
+            info!(ctx, "found AAAA record => v6 replacing with {:i}", ip_buf);
+            unsafe {
+                bpf_xdp_store_bytes(ctx.ctx, v_addr_offset as u32, ip_buf.as_ptr() as *mut _, 16)
+            };
         }
-        _ => Ok(XDP_PASS),
+        _ => {}
     }
+    Ok(XDP_PASS)
 }
 
 #[inline(always)]
